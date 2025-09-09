@@ -41,6 +41,11 @@ You can then build the firmware by running the following commands.
 west build -b healthypi_move_nrf5340_cpuapp application/app
 west flash
 ```
+To build for the nRF52840 development kit, specify the board when invoking `west` or the provided build scripts:
+
+```
+west build -b nrf52840dk_nrf52840 application/app
+```
 
 You can also open the project in Visual Studio Code and use the nRF Connect extension to open the project and build the firmware from there. This will ensure that you have all the required tools installed. For more about installing the nRF Connect extension, please refer to [Nordic's Documentation](https://docs.nordicsemi.com/bundle/ncs-latest/page/nrf/installation/install_ncs.html).
 

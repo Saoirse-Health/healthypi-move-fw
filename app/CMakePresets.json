@@ -13,6 +13,15 @@
             "cacheVariables": {
                 "BOARD": "healthypi_move/nrf5340/cpuapp"
             }
+        },
+        {
+            "name": "build-nrf52840",
+            "displayName": "Build for nRF52840 DK",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build-nrf52840",
+            "cacheVariables": {
+                "BOARD": "nrf52840dk_nrf52840"
+            }
         }
     ]
 }
