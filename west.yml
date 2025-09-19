@@ -7,6 +7,8 @@ manifest:
       url-base: https://github.com/nrfconnect
     - name: protocentral
       url-base: https://github.com/Protocentral
+    - name: saoirse
+      url-base: https://github.com/Saoirse-Health
 
   projects:
     - name: sdk-nrf
@@ -31,6 +33,11 @@ manifest:
           - trusted-firmware-m
           - sof
       clone-depth: 1
+  
+    - name: openppg-zephyr-sample
+      url: git@github.com:Saoirse-Health/openppg-zephyr-sample.git
+      revision: main               # or a feature branch / SHA
+      path: modules/openppg-zephyr-sample
 
 #    - name: max30001
 #      repo-path: protocentral_max30001_zephyr_driver

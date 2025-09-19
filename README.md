@@ -30,7 +30,7 @@ Do not use the "Code" button to download the zip file, as it will not include th
 For a quick start, you can use the following steps to compile the firmware :
 
 ```
-west init -m https://github.com/protocentral/healthypi-move-fw --mr main healthypi-move-workspace
+west init -m git@github.com:Saoirse-Health/healthypi-move-fw.git --mr dev-openppg healthypi-move-workspace
 cd healthypi-move-workspace
 west update
 ```
@@ -38,7 +38,7 @@ west update
 You can then build the firmware by running the following commands.
 
 ```
-west build -b healthypi_move_nrf5340_cpuapp application/app
+west build -b healthypi_move/nrf5340/cpuapp healthypi-move-fw.git/app -p=always
 west flash
 ```
 
