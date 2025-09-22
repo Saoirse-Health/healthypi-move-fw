@@ -37,7 +37,6 @@ BT_GATT_SERVICE_DEFINE(openppg_svc,
     BT_GATT_CCC(ccc_cfg_changed, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE)
 );
 
-
 /* Registered application callbacks */
 static const struct openppg_callbacks *g_cbs;
 static void *g_user_data;
