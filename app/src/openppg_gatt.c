@@ -8,7 +8,7 @@
 
 #include <openppg/openppg_api.h>
 #include <openppg/openppg_proto.h>
-#include <openppg/openppg_uuid.h> // defines OPENPPG_SVC_UUID, *_CHAR_UUID
+#include <openppg/openppg_uuid.h>
 
 LOG_MODULE_REGISTER(openppg_gatt, CONFIG_LOG_DEFAULT_LEVEL);
 
@@ -56,7 +56,7 @@ static ssize_t control_write(struct bt_conn *conn, const struct bt_gatt_attr *at
     switch (cmd->opcode) {
     case OPENPPG_CONTROL_OPCODE_START_STREAM:
         if (!ccc_enabled) {
-            return BT_GATT_ERR(BT_ATT_ERR_CCC_IMPROPERLY_CONFIGURED);
+            return BT_GATT_ERR(BT_ATT_ERR_CCC_IMPROPER_CONF);
         }
         if (g_cbs && g_cbs->on_stream_request) {
             g_cbs->on_stream_request((enum openppg_stream_rate)cmd->param, g_user_data);
@@ -128,16 +128,16 @@ int openppg_publish_status(const struct openppg_status_update *status)
 
 /* Attribute table */
 BT_GATT_SERVICE_DEFINE(openppg_svc,
-    BT_GATT_PRIMARY_SERVICE(&OPENPPG_SVC_UUID.uuid),
+    BT_GATT_PRIMARY_SERVICE(OPENPPG_UUID_SERVICE_OPENPPG_STREAM),
 
     /* Control characteristic: write-only */
-    BT_GATT_CHARACTERISTIC(&OPENPPG_CHAR_CONTROL_UUID.uuid,
+    BT_GATT_CHARACTERISTIC(OPENPPG_UUID_CHAR_OPPG_CONTROL,
                            BT_GATT_CHRC_WRITE,
                            BT_GATT_PERM_WRITE,
                            NULL, control_write, NULL),
 
     /* Frame characteristic: notify-only */
-    BT_GATT_CHARACTERISTIC(&OPENPPG_CHAR_FRAME_UUID.uuid,
+    BT_GATT_CHARACTERISTIC(OPENPPG_UUID_CHAR_OPPG_SAMPLES,
                            BT_GATT_CHRC_NOTIFY,
                            BT_GATT_PERM_NONE,
                            NULL, NULL, NULL),
