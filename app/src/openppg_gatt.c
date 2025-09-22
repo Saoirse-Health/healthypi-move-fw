@@ -19,24 +19,6 @@ LOG_MODULE_REGISTER(openppg_gatt, CONFIG_LOG_DEFAULT_LEVEL);
 static bool ccc_enabled;
 static uint8_t frame_buf[CONFIG_OPENPPG_MAX_FRAME_BYTES];
 
-/* Attribute table */
-BT_GATT_SERVICE_DEFINE(openppg_svc,
-    BT_GATT_PRIMARY_SERVICE(OPENPPG_UUID_SERVICE_OPENPPG_STREAM),
-
-    /* Control characteristic: write-only */
-    BT_GATT_CHARACTERISTIC(OPENPPG_UUID_CHAR_OPPG_CONTROL,
-                           BT_GATT_CHRC_WRITE,
-                           BT_GATT_PERM_WRITE,
-                           NULL, control_write, NULL),
-
-    /* Frame characteristic: notify-only */
-    BT_GATT_CHARACTERISTIC(OPENPPG_UUID_CHAR_OPPG_SAMPLES,
-                           BT_GATT_CHRC_NOTIFY,
-                           BT_GATT_PERM_NONE,
-                           NULL, NULL, NULL),
-    BT_GATT_CCC(ccc_cfg_changed, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE)
-);
-
 /* Registered application callbacks */
 static const struct openppg_callbacks *g_cbs;
 static void *g_user_data;
@@ -96,6 +78,24 @@ static ssize_t control_write(struct bt_conn *conn, const struct bt_gatt_attr *at
     }
     return len;
 }
+
+/* Attribute table */
+BT_GATT_SERVICE_DEFINE(openppg_svc,
+    BT_GATT_PRIMARY_SERVICE(OPENPPG_UUID_SERVICE_OPENPPG_STREAM),
+
+    /* Control characteristic: write-only */
+    BT_GATT_CHARACTERISTIC(OPENPPG_UUID_CHAR_OPPG_CONTROL,
+                           BT_GATT_CHRC_WRITE,
+                           BT_GATT_PERM_WRITE,
+                           NULL, control_write, NULL),
+
+    /* Frame characteristic: notify-only */
+    BT_GATT_CHARACTERISTIC(OPENPPG_UUID_CHAR_OPPG_SAMPLES,
+                           BT_GATT_CHRC_NOTIFY,
+                           BT_GATT_PERM_NONE,
+                           NULL, NULL, NULL),
+    BT_GATT_CCC(ccc_cfg_changed, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE)
+);
 
 /* API: Initialize OpenPPG core with callbacks */
 int openppg_init(const struct openppg_callbacks *cbs, void *user_data)
