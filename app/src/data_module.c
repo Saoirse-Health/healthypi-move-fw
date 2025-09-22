@@ -52,6 +52,11 @@ LOG_MODULE_REGISTER(data_module, LOG_LEVEL_DBG);
 
 #include "log_module.h"
 
+#if IS_ENABLED(CONFIG_OPENPPG)
+#include <openppg/openppg_api.h>
+#include <openppg/openppg_proto.h>
+#endif
+
 // ProtoCentral data formats
 #define CES_CMDIF_PKT_START_1 0x0A
 #define CES_CMDIF_PKT_START_2 0xFA
@@ -372,6 +377,16 @@ void data_thread(void)
             {
                 ble_ppg_notify_fi(ppg_fi_sensor_sample.raw_ir, ppg_fi_sensor_sample.ppg_num_samples);
             }
+            /* Bridge to OpenPPG: publish a sample frame containing raw IR bytes */
+#if IS_ENABLED(CONFIG_OPENPPG)
+            {
+                struct openppg_stream_frame frame;
+                memset(&frame, 0, sizeof(frame));
+                size_t nbytes = MIN(sizeof(frame), (size_t)ppg_fi_sensor_sample.ppg_num_samples * sizeof(uint32_t));
+                memcpy(&frame, ppg_fi_sensor_sample.raw_ir, nbytes);
+                (void)openppg_publish_sample(&frame);
+            }
+#endif
             if (settings_plot_enabled)
             {
                 k_msgq_put(&q_plot_ppg_fi, &ppg_fi_sensor_sample, K_NO_WAIT);
@@ -386,6 +401,16 @@ void data_thread(void)
             {
                 ble_ppg_notify_wr(ppg_wr_sensor_sample.raw_green, ppg_wr_sensor_sample.ppg_num_samples);
             }
+            /* Bridge to OpenPPG: publish a sample frame containing raw GREEN bytes */
+#if IS_ENABLED(CONFIG_OPENPPG)
+            {
+                struct openppg_stream_frame frame;
+                memset(&frame, 0, sizeof(frame));
+                size_t nbytes = MIN(sizeof(frame), (size_t)ppg_wr_sensor_sample.ppg_num_samples * sizeof(uint32_t));
+                memcpy(&frame, ppg_wr_sensor_sample.raw_green, nbytes);
+                (void)openppg_publish_sample(&frame);
+            }
+#endif
             if (settings_plot_enabled)
             {
                 k_msgq_put(&q_plot_ppg_wrist, &ppg_wr_sensor_sample, K_NO_WAIT);
