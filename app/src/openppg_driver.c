@@ -22,13 +22,20 @@ static struct k_work_delayable test_work;
 static void test_tick(struct k_work *work)
 {
     ARG_UNUSED(work);
-    static uint8_t seq;
+    static uint16_t sequence;
+    static uint8_t payload_seq;
+
     struct openppg_stream_frame frame;
     memset(&frame, 0, sizeof(frame));
-    /* Fill first byte with a sequence counter for easy client-side visibility */
-    memcpy(&frame, &seq, MIN(sizeof(seq), sizeof(frame)));
-    seq++;
-    openppg_publish_sample(&frame);
+    frame.schema_id = OPENPPG_SCHEMA_FRAME;
+    frame.header.timestamp_ms = k_uptime_get_32();
+    frame.header.sequence_number = sequence++;
+    frame.header.num_channels = 1;
+    frame.header.num_samples = 1;
+    frame.payload_len = 1;
+    frame.payload[0] = payload_seq++;
+
+    (void)openppg_publish_sample(&frame);
 
     /* Default ~25 Hz for testing */
     k_work_schedule(&test_work, K_MSEC(40));

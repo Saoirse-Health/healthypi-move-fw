@@ -377,13 +377,24 @@ void data_thread(void)
             {
                 ble_ppg_notify_fi(ppg_fi_sensor_sample.raw_ir, ppg_fi_sensor_sample.ppg_num_samples);
             }
-            /* Bridge to OpenPPG: publish a sample frame containing raw IR bytes */
+            /* Bridge to OpenPPG: publish a properly formed stream frame with IR samples */
 #if IS_ENABLED(CONFIG_OPENPPG)
             {
+                static uint16_t openppg_seq_ir;
+                const size_t bytes_per_sample = sizeof(ppg_fi_sensor_sample.raw_ir[0]);
+                const size_t max_samples_fit = MIN((size_t)ppg_fi_sensor_sample.ppg_num_samples,
+                                                   (size_t)(OPENPPG_FRAME_MAX_PAYLOAD_LEN / bytes_per_sample));
+                const size_t nbytes = max_samples_fit * bytes_per_sample;
+
                 struct openppg_stream_frame frame;
                 memset(&frame, 0, sizeof(frame));
-                size_t nbytes = MIN(sizeof(frame), (size_t)ppg_fi_sensor_sample.ppg_num_samples * sizeof(uint32_t));
-                memcpy(&frame, ppg_fi_sensor_sample.raw_ir, nbytes);
+                frame.schema_id = OPENPPG_SCHEMA_FRAME;
+                frame.header.timestamp_ms = k_uptime_get_32();
+                frame.header.sequence_number = openppg_seq_ir++;
+                frame.header.num_channels = 1;
+                frame.header.num_samples = (uint8_t)max_samples_fit;
+                frame.payload_len = nbytes;
+                memcpy(frame.payload, ppg_fi_sensor_sample.raw_ir, nbytes);
                 (void)openppg_publish_sample(&frame);
             }
 #endif
@@ -401,13 +412,24 @@ void data_thread(void)
             {
                 ble_ppg_notify_wr(ppg_wr_sensor_sample.raw_green, ppg_wr_sensor_sample.ppg_num_samples);
             }
-            /* Bridge to OpenPPG: publish a sample frame containing raw GREEN bytes */
+            /* Bridge to OpenPPG: publish a properly formed stream frame with GREEN samples */
 #if IS_ENABLED(CONFIG_OPENPPG)
             {
+                static uint16_t openppg_seq_green;
+                const size_t bytes_per_sample = sizeof(ppg_wr_sensor_sample.raw_green[0]);
+                const size_t max_samples_fit = MIN((size_t)ppg_wr_sensor_sample.ppg_num_samples,
+                                                   (size_t)(OPENPPG_FRAME_MAX_PAYLOAD_LEN / bytes_per_sample));
+                const size_t nbytes = max_samples_fit * bytes_per_sample;
+
                 struct openppg_stream_frame frame;
                 memset(&frame, 0, sizeof(frame));
-                size_t nbytes = MIN(sizeof(frame), (size_t)ppg_wr_sensor_sample.ppg_num_samples * sizeof(uint32_t));
-                memcpy(&frame, ppg_wr_sensor_sample.raw_green, nbytes);
+                frame.schema_id = OPENPPG_SCHEMA_FRAME;
+                frame.header.timestamp_ms = k_uptime_get_32();
+                frame.header.sequence_number = openppg_seq_green++;
+                frame.header.num_channels = 1;
+                frame.header.num_samples = (uint8_t)max_samples_fit;
+                frame.payload_len = nbytes;
+                memcpy(frame.payload, ppg_wr_sensor_sample.raw_green, nbytes);
                 (void)openppg_publish_sample(&frame);
             }
 #endif
