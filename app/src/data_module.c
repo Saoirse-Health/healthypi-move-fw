@@ -52,11 +52,6 @@ LOG_MODULE_REGISTER(data_module, LOG_LEVEL_DBG);
 
 #include "log_module.h"
 
-#if IS_ENABLED(CONFIG_OPENPPG)
-#include <openppg/openppg_api.h>
-#include <openppg/openppg_proto.h>
-#endif
-
 // ProtoCentral data formats
 #define CES_CMDIF_PKT_START_1 0x0A
 #define CES_CMDIF_PKT_START_2 0xFA
@@ -412,27 +407,6 @@ void data_thread(void)
             {
                 ble_ppg_notify_wr(ppg_wr_sensor_sample.raw_green, ppg_wr_sensor_sample.ppg_num_samples);
             }
-            /* Bridge to OpenPPG: publish a properly formed stream frame with GREEN samples */
-#if IS_ENABLED(CONFIG_OPENPPG)
-            {
-                static uint16_t openppg_seq_green;
-                const size_t bytes_per_sample = sizeof(ppg_wr_sensor_sample.raw_green[0]);
-                const size_t max_samples_fit = MIN((size_t)ppg_wr_sensor_sample.ppg_num_samples,
-                                                   (size_t)(OPENPPG_FRAME_MAX_PAYLOAD_LEN / bytes_per_sample));
-                const size_t nbytes = max_samples_fit * bytes_per_sample;
-
-                struct openppg_stream_frame frame;
-                memset(&frame, 0, sizeof(frame));
-                frame.schema_id = OPENPPG_SCHEMA_FRAME;
-                frame.header.timestamp_ms = k_uptime_get_32();
-                frame.header.sequence_number = openppg_seq_green++;
-                frame.header.num_channels = 1;
-                frame.header.num_samples = (uint8_t)max_samples_fit;
-                frame.payload_len = nbytes;
-                memcpy(frame.payload, ppg_wr_sensor_sample.raw_green, nbytes);
-                (void)openppg_publish_sample(&frame);
-            }
-#endif
             if (settings_plot_enabled)
             {
                 k_msgq_put(&q_plot_ppg_wrist, &ppg_wr_sensor_sample, K_NO_WAIT);
