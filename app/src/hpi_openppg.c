@@ -14,6 +14,8 @@ LOG_MODULE_REGISTER(hpi_openppg, CONFIG_LOG_DEFAULT_LEVEL);
 #include "openppg_internal.h"  // for openppg_gatt_notify_stream() via core
 #include <openppg/openppg_api.h>  // publishes frames/status
 
+#include "hpi_common_types.h"
+
 // ---- Internal state ----
 
 enum {
@@ -107,15 +109,15 @@ void hpi_openppg_push_ppg_wrist(const struct hpi_ppg_wr_data_t *b)
 {
     if (!b || !s_cfg.configured) return;
 
-    for (uint16_t i = 0; i < b->ppg_num_samples; ++i) {
-        int32_t ch0 = 0, ch1 = 0;
+    for (uint8_t i = 0; i < b->ppg_num_samples; ++i) {
+        int32_t ch0 = 0;
         if (s_cfg.ch0_green_not_red) {
-            ch0 = b->raw_green ? b->raw_green[i] : 0;
+            ch0 = (int32_t)b->raw_green[i];
         } else {
-            // If you have RED in this struct, map it here; else keep GREEN.
-            ch0 = b->raw_green ? b->raw_green[i] : 0;
+            // If RED data becomes available, swap assignment here.
+            ch0 = (int32_t)b->raw_green[i];
         }
-        ch1 = b->raw_ir ? b->raw_ir[i] : 0;
+        int32_t ch1 = (int32_t)b->raw_ir[i];
         push_row_i2(ch0, ch1);
     }
 }
@@ -124,9 +126,8 @@ void hpi_openppg_push_ppg_fi(const struct hpi_ppg_fi_data_t *b)
 {
     if (!b || !s_cfg.configured) return;
 
-    for (uint16_t i = 0; i < b->ppg_num_samples; ++i) {
-        // If only IR is available, feed ch1 and leave ch0 0 (or duplicate IR if you prefer)
-        push_row_i2(/*ch0=*/0, /*ch1=*/b->raw_ir ? b->raw_ir[i] : 0);
+    for (uint8_t i = 0; i < b->ppg_num_samples; ++i) {
+        push_row_i2(/*ch0=*/0, /*ch1=*/(int32_t)b->raw_ir[i]);
     }
 }
 

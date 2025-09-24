@@ -28,28 +28,9 @@ extern "C" {
 #endif
 
 // ---- Types from your HPI code ----
-// Forward-declare the batch structs you already have.
-// Replace includes with the real header(s) in your repo.
-struct hpi_ppg_wr_data_t {
-    // REQUIRED FIELDS (edit if names differ)
-    uint16_t ppg_num_samples;
-    const int32_t *raw_green;      // or raw_red; adapt mapping in .c
-    const int32_t *raw_ir;         // may be NULL if not present
-    uint8_t scd_state;
-    uint8_t hr;
-    uint8_t hr_confidence;
-};
-
-struct hpi_ppg_fi_data_t {
-    uint16_t ppg_num_samples;
-    const int32_t *raw_ir;
-};
-
-struct hpi_ecg_bioz_sensor_data_t {
-    uint16_t ecg_num_samples;
-    const int32_t *ecg_samples;
-    const int32_t *bioz_samples;   // optional
-};
+struct hpi_ppg_wr_data_t;
+struct hpi_ppg_fi_data_t;
+struct hpi_ecg_bioz_sensor_data_t;
 
 // ---- Initialization & configuration ----
 

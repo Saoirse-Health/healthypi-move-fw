@@ -52,6 +52,10 @@ LOG_MODULE_REGISTER(data_module, LOG_LEVEL_DBG);
 
 #include "log_module.h"
 
+#if IS_ENABLED(CONFIG_OPENPPG)
+#include "hpi_openppg.h"
+#endif
+
 // ProtoCentral data formats
 #define CES_CMDIF_PKT_START_1 0x0A
 #define CES_CMDIF_PKT_START_2 0xFA
@@ -287,6 +291,20 @@ void data_thread(void)
 
     LOG_INF("Data Thread starting");
 
+#if IS_ENABLED(CONFIG_OPENPPG)
+    int rc = hpi_openppg_init();
+    if (rc != 0)
+    {
+        LOG_ERR("OpenPPG init failed (%d)", rc);
+    }
+
+    rc = hpi_openppg_configure_ppg(0, true);
+    if (rc != 0)
+    {
+        LOG_ERR("OpenPPG configure failed (%d)", rc);
+    }
+#endif
+
     for (;;)
     {
         bool processed_data = false;
@@ -372,26 +390,8 @@ void data_thread(void)
             {
                 ble_ppg_notify_fi(ppg_fi_sensor_sample.raw_ir, ppg_fi_sensor_sample.ppg_num_samples);
             }
-            /* Bridge to OpenPPG: publish a properly formed stream frame with IR samples */
 #if IS_ENABLED(CONFIG_OPENPPG)
-            {
-                static uint16_t openppg_seq_ir;
-                const size_t bytes_per_sample = sizeof(ppg_fi_sensor_sample.raw_ir[0]);
-                const size_t max_samples_fit = MIN((size_t)ppg_fi_sensor_sample.ppg_num_samples,
-                                                   (size_t)(OPENPPG_FRAME_MAX_PAYLOAD_LEN / bytes_per_sample));
-                const size_t nbytes = max_samples_fit * bytes_per_sample;
-
-                struct openppg_stream_frame frame;
-                memset(&frame, 0, sizeof(frame));
-                frame.schema_id = OPENPPG_SCHEMA_FRAME;
-                frame.header.timestamp_ms = k_uptime_get_32();
-                frame.header.sequence_number = openppg_seq_ir++;
-                frame.header.num_channels = 1;
-                frame.header.num_samples = (uint8_t)max_samples_fit;
-                frame.payload_len = nbytes;
-                memcpy(frame.payload, ppg_fi_sensor_sample.raw_ir, nbytes);
-                (void)openppg_publish_sample(&frame);
-            }
+            hpi_openppg_push_ppg_fi(&ppg_fi_sensor_sample);
 #endif
             if (settings_plot_enabled)
             {
@@ -411,6 +411,10 @@ void data_thread(void)
             {
                 k_msgq_put(&q_plot_ppg_wrist, &ppg_wr_sensor_sample, K_NO_WAIT);
             }
+
+#if IS_ENABLED(CONFIG_OPENPPG)
+            hpi_openppg_push_ppg_wrist(&ppg_wr_sensor_sample);
+#endif
 
             if (settings_send_usb_enabled)
             {
