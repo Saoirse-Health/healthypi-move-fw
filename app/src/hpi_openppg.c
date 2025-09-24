@@ -35,7 +35,7 @@ struct oppg_row {
     int32_t  sample[HPI_OPPG_MAX_CH];
 };
 
-static K_MSGQ_DEFINE(s_row_q, sizeof(struct oppg_row), HPI_OPPG_ROW_QUEUE_LEN, 4);
+K_MSGQ_DEFINE(s_row_q, sizeof(struct oppg_row), HPI_OPPG_ROW_QUEUE_LEN, 4);
 
 static struct {
     bool     configured;
