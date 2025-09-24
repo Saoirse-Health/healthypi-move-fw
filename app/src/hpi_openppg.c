@@ -12,7 +12,6 @@ LOG_MODULE_REGISTER(hpi_openppg, CONFIG_LOG_DEFAULT_LEVEL);
 
 // OpenPPG core & proto (already in your tree)
 #include <openppg/openppg_proto.h>
-#include <openppg/openppg_internal.h> // for openppg_gatt_notify_stream() via core
 #include <openppg/openppg_api.h>  // publishes frames/status
 
 #include "hpi_common_types.h"
@@ -169,8 +168,6 @@ void hpi_openppg_push_ecg_bioz(const struct hpi_ecg_bioz_sensor_data_t *b)
 // NOTE: Your current core polls for full frames via openppg_hw_sample(). We assemble one
 // by draining s_row_q up to n_samples_per_frame rows into the schema-aligned
 // openppg_stream_frame, populating header metadata, channel_map, and interleaved samples.
-
-extern int openppg_gatt_notify_stream(const struct openppg_stream_frame *frame); // used by core
 
 // Quantize raw int32 to chosen qfmt range (very basic; refine as needed)
 static inline int32_t clip_s16(int32_t v) { return (v < -32768) ? -32768 : (v > 32767 ? 32767 : v); }
