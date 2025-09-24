@@ -6,12 +6,13 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/sys/atomic.h>
 #include <zephyr/sys/util.h>
 LOG_MODULE_REGISTER(hpi_openppg, CONFIG_LOG_DEFAULT_LEVEL);
 
 // OpenPPG core & proto (already in your tree)
 #include <openppg/openppg_proto.h>
-#include "openppg_internal.h"  // for openppg_gatt_notify_stream() via core
+#include <openppg/openppg_internal.h> // for openppg_gatt_notify_stream() via core
 #include <openppg/openppg_api.h>  // publishes frames/status
 
 #include "hpi_common_types.h"
@@ -61,6 +62,23 @@ static struct {
 
 // ---- Helpers ----
 
+static atomic_t s_drop_counter = ATOMIC_INIT(0);
+
+static inline void publish_drop_counter(void)
+{
+    uint16_t drop_count = (uint16_t)atomic_get(&s_drop_counter);
+    struct openppg_status_update status = {
+        .status = OPENPPG_STATUS_OK,
+        .warning_flags = 0,
+        .reserved = {
+            (uint8_t)(drop_count & 0xFF),
+            (uint8_t)((drop_count >> 8) & 0xFF),
+        },
+    };
+
+    (void)openppg_publish_status(&status);
+}
+
 static inline void push_row_i2(int32_t ch0, int32_t ch1)
 {
     if (!s_cfg.running) return;
@@ -72,9 +90,18 @@ static inline void push_row_i2(int32_t ch0, int32_t ch1)
     if (k_msgq_put(&s_row_q, &r, K_NO_WAIT) != 0) {
         // Drop-oldest policy
         struct oppg_row throwaway;
-        (void)k_msgq_get(&s_row_q, &throwaway, K_NO_WAIT);
-        (void)k_msgq_put(&s_row_q, &r, K_NO_WAIT);
-        // TODO: expose a drop counter via metrics/status
+        bool dropped = false;
+
+        if (k_msgq_get(&s_row_q, &throwaway, K_NO_WAIT) == 0) {
+            dropped = true;
+        }
+        if (k_msgq_put(&s_row_q, &r, K_NO_WAIT) != 0) {
+            dropped = true;
+        }
+        if (dropped) {
+            (void)atomic_inc(&s_drop_counter);
+            publish_drop_counter();
+        }
     }
 }
 
@@ -292,6 +319,8 @@ int openppg_hw_fetch_status(struct openppg_status_update *status)
     if (!status) return -EINVAL;
     status->status = OPENPPG_STATUS_OK;
     status->warning_flags = 0;
-    memset(status->reserved, 0, sizeof(status->reserved));
+    uint16_t drop_count = (uint16_t)atomic_get(&s_drop_counter);
+    status->reserved[0] = (uint8_t)(drop_count & 0xFF);
+    status->reserved[1] = (uint8_t)((drop_count >> 8) & 0xFF);
     return 0;
 }
