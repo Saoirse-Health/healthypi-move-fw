@@ -14,7 +14,7 @@ extern "C" {
 
 // Max channels we’ll expose over OpenPPG from HPI data paths (adjust as needed)
 #ifndef HPI_OPPG_MAX_CH
-#define HPI_OPPG_MAX_CH  2   // e.g., RED, IR (or GREEN, IR)
+#define HPI_OPPG_MAX_CH  3   // GREEN, IR, RED
 #endif
 
 // Default: how many time-samples per OpenPPG frame (kept small to fit one MTU)
@@ -38,7 +38,7 @@ struct hpi_ecg_bioz_sensor_data_t;
 int hpi_openppg_init(void);
 
 // Configure channel mapping / qfmt for OpenPPG stream.
-// For v1: simple two-channel PPG (ch0=RED/GREEN, ch1=IR if available).
+// For v1: wrist PPG (ch0=GREEN or RED, ch1=IR, ch2=remaining color when available).
 int hpi_openppg_configure_ppg(uint32_t rate_hz, bool use_green_for_ch0);
 
 // ---- Batch push helpers (call these from data_thread) ----

@@ -51,8 +51,16 @@ static struct {
     .configured = false,
     .running = false,
     .rate_hz = 100,
-    .n_channels = 2,
-    .qfmt = { OPPG_QFMT_U24, OPPG_QFMT_U24 }, // wire will be quantized later by core/codec
+    .n_channels = MIN((uint8_t)3U, (uint8_t)HPI_OPPG_MAX_CH),
+    .qfmt = {
+        OPPG_QFMT_U24,
+#if HPI_OPPG_MAX_CH > 1
+        OPPG_QFMT_U24,
+#endif
+#if HPI_OPPG_MAX_CH > 2
+        OPPG_QFMT_U24,
+#endif
+    }, // wire will be quantized later by core/codec
     .ch0_green_not_red = true,
     .n_samples_per_frame = HPI_OPPG_NSAMPLES_PER_FRAME,
     .frame_seq = 0,
@@ -78,14 +86,20 @@ static inline void publish_drop_counter(void)
     (void)openppg_publish_status(&status);
 }
 
-static inline void push_row_i2(int32_t ch0, int32_t ch1)
+static inline void push_row_samples(const int32_t samples[HPI_OPPG_MAX_CH])
 {
     if (!s_cfg.running) return;
 
     struct oppg_row r = {
         .timestamp_ms = (uint64_t)k_uptime_get(), // TODO: swap for true wall-clock epoch when available
-        .sample = { ch0, ch1 }
     };
+    memset(r.sample, 0, sizeof(r.sample));
+
+    uint8_t copy_count = MIN(s_cfg.n_channels, (uint8_t)HPI_OPPG_MAX_CH);
+    for (uint8_t c = 0; c < copy_count; ++c) {
+        r.sample[c] = samples[c];
+    }
+
     if (k_msgq_put(&s_row_q, &r, K_NO_WAIT) != 0) {
         // Drop-oldest policy
         struct oppg_row throwaway;
@@ -119,9 +133,11 @@ int hpi_openppg_configure_ppg(uint32_t rate_hz, bool use_green_for_ch0)
 
     s_cfg.rate_hz = (rate_hz == 0) ? 100 : rate_hz;
     s_cfg.ch0_green_not_red = use_green_for_ch0;
-    s_cfg.n_channels = MIN((uint8_t)2U, (uint8_t)OPENPPG_FRAME_MAX_CHANNELS);
-    s_cfg.qfmt[0] = OPPG_QFMT_U24;
-    s_cfg.qfmt[1] = OPPG_QFMT_U24;
+    uint8_t max_channels = MIN((uint8_t)HPI_OPPG_MAX_CH, (uint8_t)OPENPPG_FRAME_MAX_CHANNELS);
+    s_cfg.n_channels = MIN((uint8_t)3U, max_channels);
+    for (uint8_t c = 0; c < s_cfg.n_channels; ++c) {
+        s_cfg.qfmt[c] = OPPG_QFMT_U24;
+    }
     s_cfg.configured = true;
 
     if (!was_configured || prior_green != use_green_for_ch0) {
@@ -136,15 +152,21 @@ void hpi_openppg_push_ppg_wrist(const struct hpi_ppg_wr_data_t *b)
     if (!b || !s_cfg.configured) return;
 
     for (uint8_t i = 0; i < b->ppg_num_samples; ++i) {
-        int32_t ch0 = 0;
-        if (s_cfg.ch0_green_not_red) {
-            ch0 = (int32_t)b->raw_green[i];
-        } else {
-            // If RED data becomes available, swap assignment here.
-            ch0 = (int32_t)b->raw_green[i];
+        int32_t samples[HPI_OPPG_MAX_CH] = { 0 };
+
+        if (HPI_OPPG_MAX_CH > 0) {
+            samples[0] = s_cfg.ch0_green_not_red ? (int32_t)b->raw_green[i]
+                                                 : (int32_t)b->raw_red[i];
         }
-        int32_t ch1 = (int32_t)b->raw_ir[i];
-        push_row_i2(ch0, ch1);
+#if HPI_OPPG_MAX_CH > 1
+        samples[1] = (int32_t)b->raw_ir[i];
+#endif
+#if HPI_OPPG_MAX_CH > 2
+        samples[2] = s_cfg.ch0_green_not_red ? (int32_t)b->raw_red[i]
+                                             : (int32_t)b->raw_green[i];
+#endif
+
+        push_row_samples(samples);
     }
 }
 
@@ -153,7 +175,21 @@ void hpi_openppg_push_ppg_fi(const struct hpi_ppg_fi_data_t *b)
     if (!b || !s_cfg.configured) return;
 
     for (uint8_t i = 0; i < b->ppg_num_samples; ++i) {
-        push_row_i2(/*ch0=*/0, /*ch1=*/(int32_t)b->raw_ir[i]);
+        int32_t samples[HPI_OPPG_MAX_CH] = { 0 };
+
+        if (HPI_OPPG_MAX_CH > 0 && !s_cfg.ch0_green_not_red) {
+            samples[0] = (int32_t)b->raw_red[i];
+        }
+#if HPI_OPPG_MAX_CH > 1
+        samples[1] = (int32_t)b->raw_ir[i];
+#endif
+#if HPI_OPPG_MAX_CH > 2
+        if (s_cfg.ch0_green_not_red) {
+            samples[2] = (int32_t)b->raw_red[i];
+        }
+#endif
+
+        push_row_samples(samples);
     }
 }
 
@@ -229,10 +265,19 @@ int openppg_hw_sample(struct openppg_stream_frame *frame)
         }
         desc->wavelength_nm = 0U; // TODO: populate with sensor-specific wavelength when available
 
-        if (c == 0U) {
+        switch (c) {
+        case 0U:
             desc->modality = s_cfg.ch0_green_not_red ? OPPG_MODALITY_GREEN : OPPG_MODALITY_RED;
-        } else {
+            break;
+        case 1U:
             desc->modality = OPPG_MODALITY_IR;
+            break;
+        case 2U:
+            desc->modality = s_cfg.ch0_green_not_red ? OPPG_MODALITY_RED : OPPG_MODALITY_GREEN;
+            break;
+        default:
+            desc->modality = OPPG_MODALITY_IR;
+            break;
         }
     }
 
