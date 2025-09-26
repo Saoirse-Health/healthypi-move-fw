@@ -8,7 +8,7 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/atomic.h>
 #include <zephyr/sys/util.h>
-LOG_MODULE_REGISTER(hpi_openppg, CONFIG_LOG_DEFAULT_LEVEL);
+LOG_MODULE_REGISTER(hpi_openppg, LOG_LEVEL_INF);
 
 // OpenPPG core & proto (already in your tree)
 #include <openppg/openppg_proto.h>
@@ -103,7 +103,7 @@ static inline void push_row_samples(const int32_t samples[HPI_OPPG_MAX_CH])
     // Observe queue occupancy in debug modes so we can detect backpressure quickly.
     uint32_t used = k_msgq_num_used_get(&s_row_q);
     if (used > (HPI_OPPG_ROW_QUEUE_LEN * 3U / 4U)) {
-        LOG_DBG("PPG queue pressure: %u/%u rows used", used, (uint32_t)HPI_OPPG_ROW_QUEUE_LEN);
+        LOG_INF("PPG queue pressure: %u/%u rows used", used, (uint32_t)HPI_OPPG_ROW_QUEUE_LEN);
     }
 
     if (k_msgq_put(&s_row_q, &r, K_NO_WAIT) != 0) {
@@ -123,7 +123,7 @@ static inline void push_row_samples(const int32_t samples[HPI_OPPG_MAX_CH])
             uint32_t now_ms = k_uptime_get_32();
             if ((now_ms - last_warn_ms) > 1000U) {
                 last_warn_ms = now_ms;
-                LOG_WRN("PPG row queue overflowed; dropped oldest sample set");
+                LOG_INF("PPG row queue overflowed; dropped oldest sample set");
             }
             publish_drop_counter();
         }
