@@ -40,7 +40,7 @@ static void profile_tick(struct k_work *work)
             profile.last_transport_err);
     }
 
-    LOG_DBG("OpenPPG stream stats: enq=%" PRIu64 ", deq=%" PRIu64 ", notif=%" PRIu64
+    LOG_INF("OpenPPG stream stats: enq=%" PRIu64 ", deq=%" PRIu64 ", notif=%" PRIu64
         ", bytes=%" PRIu64 ", depth=%" PRIu32 "/%" PRIu32 ", max_payload=%" PRIu32,
         profile.enqueued_frames, profile.dequeued_frames, profile.notified_frames,
         profile.bytes_notified, profile.last_queue_depth, profile.max_queue_depth,
