@@ -14,7 +14,7 @@
 /* Internal profiling hook from the OpenPPG core. */
 void openppg_core_profile_on_transport_result(int err, size_t payload_len);
 
-LOG_MODULE_DECLARE(hpi_openppg, CONFIG_LOG_DEFAULT_LEVEL);
+LOG_MODULE_DECLARE(hpi_openppg, LOG_LEVEL_INF);
 
 /* Attribute indices mirrored from the OpenPPG GATT definition. */
 enum openppg_attr_index {
