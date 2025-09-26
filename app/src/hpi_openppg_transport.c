@@ -11,6 +11,9 @@
 #include <openppg/openppg_proto.h>
 #include <openppg/openppg_uuid.h>
 
+/* Internal profiling hook from the OpenPPG core. */
+void openppg_core_profile_on_transport_result(int err, size_t payload_len);
+
 LOG_MODULE_DECLARE(hpi_openppg, CONFIG_LOG_DEFAULT_LEVEL);
 
 /* Attribute indices mirrored from the OpenPPG GATT definition. */
@@ -46,6 +49,7 @@ int openppg_transport_notify_stream(const struct openppg_stream_frame *frame)
                                                  sizeof(stream_scratch), &encoded_len);
     if (err) {
         LOG_ERR("Failed to encode stream frame (%d)", err);
+        openppg_core_profile_on_transport_result(err, 0U);
         return err;
     }
 
@@ -56,6 +60,8 @@ int openppg_transport_notify_stream(const struct openppg_stream_frame *frame)
     if (err == -ENOTCONN) {
         err = 0;
     }
+
+    openppg_core_profile_on_transport_result(err, err ? 0U : encoded_len);
 
     return err;
 }
@@ -71,6 +77,7 @@ int openppg_transport_notify_status(const struct openppg_status_update *status)
     int err = openppg_codec_encode_status(status, encoded, sizeof(encoded), &encoded_len);
     if (err) {
         LOG_ERR("Failed to encode status (%d)", err);
+        openppg_core_profile_on_transport_result(err, 0U);
         return err;
     }
 
@@ -79,6 +86,8 @@ int openppg_transport_notify_status(const struct openppg_status_update *status)
     if (err == -ENOTCONN) {
         err = 0;
     }
+
+    openppg_core_profile_on_transport_result(err, err ? 0U : encoded_len);
 
     return err;
 }
