@@ -5,6 +5,8 @@
 #include <openppg/openppg_proto.h>
 #include <zephyr/sys/atomic.h>
 
+#include <inttypes.h>
+
 LOG_MODULE_REGISTER(openppg_driver, CONFIG_LOG_DEFAULT_LEVEL);
 
 /*
@@ -15,6 +17,37 @@ LOG_MODULE_REGISTER(openppg_driver, CONFIG_LOG_DEFAULT_LEVEL);
  */
 
 static atomic_t streaming = ATOMIC_INIT(false);
+static struct k_work_delayable profile_work;
+
+#define PROFILE_LOG_INTERVAL K_SECONDS(5)
+
+static void profile_tick(struct k_work *work)
+{
+    ARG_UNUSED(work);
+
+    if (!atomic_get(&streaming)) {
+        return;
+    }
+
+    struct openppg_stream_profile profile;
+
+    openppg_stream_profile_get(&profile);
+
+    if (profile.drop_enomem || profile.drop_eagain || profile.drop_other) {
+        LOG_WRN("OpenPPG stream drops: eagain=%" PRIu64 ", enomem=%" PRIu64 ", other=%" PRIu64
+            ", last_err=%d",
+            profile.drop_eagain, profile.drop_enomem, profile.drop_other,
+            profile.last_transport_err);
+    }
+
+    LOG_DBG("OpenPPG stream stats: enq=%" PRIu64 ", deq=%" PRIu64 ", notif=%" PRIu64
+        ", bytes=%" PRIu64 ", depth=%" PRIu32 "/%" PRIu32 ", max_payload=%" PRIu32,
+        profile.enqueued_frames, profile.dequeued_frames, profile.notified_frames,
+        profile.bytes_notified, profile.last_queue_depth, profile.max_queue_depth,
+        profile.max_payload_len);
+
+    (void)k_work_reschedule(&profile_work, PROFILE_LOG_INTERVAL);
+}
 
 #if defined(CONFIG_OPENPPG_TEST_GEN)
 static struct k_work_delayable test_work;
@@ -51,6 +84,8 @@ static void cb_on_stream_request(enum openppg_stream_rate rate, void *user_data)
      */
     atomic_set(&streaming, true);
     LOG_INF("OpenPPG stream requested (rate=%u)", (unsigned)rate);
+    openppg_stream_profile_reset();
+    (void)k_work_reschedule(&profile_work, K_NO_WAIT);
 #if defined(CONFIG_OPENPPG_TEST_GEN)
     k_work_schedule(&test_work, K_NO_WAIT);
 #endif
@@ -61,6 +96,7 @@ static void cb_on_stream_stopped(void *user_data)
     ARG_UNUSED(user_data);
     atomic_clear(&streaming);
     LOG_INF("OpenPPG stream stopped by remote");
+    k_work_cancel_delayable(&profile_work);
 #if defined(CONFIG_OPENPPG_TEST_GEN)
     k_work_cancel_delayable(&test_work);
 #endif
@@ -86,6 +122,7 @@ static int openppg_driver_init(const struct device *unused)
 #if defined(CONFIG_OPENPPG_TEST_GEN)
     k_work_init_delayable(&test_work, test_tick);
 #endif
+    k_work_init_delayable(&profile_work, profile_tick);
     return rc;
 }
 
