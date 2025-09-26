@@ -53,6 +53,8 @@ int openppg_transport_notify_stream(const struct openppg_stream_frame *frame)
         return err;
     }
 
+    LOG_INF("OpenPPG stream payload %zu bytes", encoded_len);
+
     const struct bt_gatt_attr *attr = &openppg_service.attrs[OPENPPG_ATTR_IDX_STREAM_VALUE];
 
     err = bt_gatt_notify_uuid(NULL, OPENPPG_UUID_CHAR_OPPG_SAMPLES, attr,
@@ -80,6 +82,8 @@ int openppg_transport_notify_status(const struct openppg_status_update *status)
         openppg_core_profile_on_transport_result(err, 0U);
         return err;
     }
+
+    LOG_DBG("OpenPPG status payload %zu bytes", encoded_len);
 
     const struct bt_gatt_attr *attr = &openppg_service.attrs[OPENPPG_ATTR_IDX_FEATURES_VALUE];
     err = bt_gatt_notify_uuid(NULL, OPENPPG_UUID_CHAR_OPPG_FEATURES, attr, encoded, encoded_len);

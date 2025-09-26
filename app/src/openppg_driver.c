@@ -49,32 +49,6 @@ static void profile_tick(struct k_work *work)
     (void)k_work_reschedule(&profile_work, PROFILE_LOG_INTERVAL);
 }
 
-#if defined(CONFIG_OPENPPG_TEST_GEN)
-static struct k_work_delayable test_work;
-
-static void test_tick(struct k_work *work)
-{
-    ARG_UNUSED(work);
-    static uint16_t sequence;
-    static uint8_t payload_seq;
-
-    struct openppg_stream_frame frame;
-    memset(&frame, 0, sizeof(frame));
-    frame.schema_id = OPENPPG_SCHEMA_FRAME;
-    frame.header.timestamp_ms = k_uptime_get_32();
-    frame.header.sequence_number = sequence++;
-    frame.header.num_channels = 1;
-    frame.header.num_samples = 1;
-    frame.payload_len = 1;
-    frame.payload[0] = payload_seq++;
-
-    (void)openppg_publish_sample(&frame);
-
-    /* Default ~25 Hz for testing */
-    k_work_schedule(&test_work, K_MSEC(40));
-}
-#endif
-
 static void cb_on_stream_request(enum openppg_stream_rate rate, void *user_data)
 {
     ARG_UNUSED(user_data);
@@ -86,9 +60,6 @@ static void cb_on_stream_request(enum openppg_stream_rate rate, void *user_data)
     LOG_INF("OpenPPG stream requested (rate=%u)", (unsigned)rate);
     openppg_stream_profile_reset();
     (void)k_work_reschedule(&profile_work, K_NO_WAIT);
-#if defined(CONFIG_OPENPPG_TEST_GEN)
-    k_work_schedule(&test_work, K_NO_WAIT);
-#endif
 }
 
 static void cb_on_stream_stopped(void *user_data)
@@ -97,9 +68,6 @@ static void cb_on_stream_stopped(void *user_data)
     atomic_clear(&streaming);
     LOG_INF("OpenPPG stream stopped by remote");
     k_work_cancel_delayable(&profile_work);
-#if defined(CONFIG_OPENPPG_TEST_GEN)
-    k_work_cancel_delayable(&test_work);
-#endif
 }
 
 static void cb_on_control_command(const struct openppg_control_command *cmd, void *user_data)
@@ -119,9 +87,6 @@ static int openppg_driver_init(const struct device *unused)
     };
 
     int rc = openppg_init(&cbs, NULL);
-#if defined(CONFIG_OPENPPG_TEST_GEN)
-    k_work_init_delayable(&test_work, test_tick);
-#endif
     k_work_init_delayable(&profile_work, profile_tick);
     return rc;
 }
