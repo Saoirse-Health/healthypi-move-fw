@@ -7,7 +7,7 @@
 
 #include <inttypes.h>
 
-LOG_MODULE_REGISTER(openppg_driver, CONFIG_LOG_DEFAULT_LEVEL);
+LOG_MODULE_REGISTER(openppg_driver, LOG_LEVEL_INF);
 
 /*
  * This file implements the application-side glue for OpenPPG control events.
