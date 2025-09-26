@@ -320,6 +320,13 @@ void hpi_ble_send_data(const uint8_t *data, uint16_t len)
 void ble_ppg_notify_wr(uint32_t *ppg_data, uint8_t len)
 {
 	uint8_t out_data[128];
+	const size_t payload_len = (size_t)len * sizeof(uint32_t);
+
+	if (payload_len > sizeof(out_data))
+	{
+		LOG_WRN("WR PPG payload truncated: %zu > %zu", payload_len, sizeof(out_data));
+		len = sizeof(out_data) / sizeof(uint32_t);
+	}
 
 	for (int i = 0; i < len; i++)
 	{
@@ -331,12 +338,23 @@ void ble_ppg_notify_wr(uint32_t *ppg_data, uint8_t len)
 
 	// LOG_DBG("PPG Not len %d", len);
 
-	bt_gatt_notify(NULL, &hpi_ppg_service.attrs[2], &out_data, len * 4);
+	int err = bt_gatt_notify(NULL, &hpi_ppg_service.attrs[2], out_data, len * 4);
+	if (err != 0 && err != -ENOTCONN)
+	{
+		LOG_WRN("bt_gatt_notify (wrist PPG) failed: %d", err);
+	}
 }
 
 void ble_ppg_notify_fi(uint32_t *ppg_data, uint8_t len)
 {
 	uint8_t out_data[128];
+	const size_t payload_len = (size_t)len * sizeof(uint32_t);
+
+	if (payload_len > sizeof(out_data))
+	{
+		LOG_WRN("FI PPG payload truncated: %zu > %zu", payload_len, sizeof(out_data));
+		len = sizeof(out_data) / sizeof(uint32_t);
+	}
 
 	for (int i = 0; i < len; i++)
 	{
@@ -348,7 +366,11 @@ void ble_ppg_notify_fi(uint32_t *ppg_data, uint8_t len)
 
 	// LOG_DBG("PPG Not len %d", len);
 
-	bt_gatt_notify(NULL, &hpi_ppg_service.attrs[4], &out_data, len * 4);
+	int err = bt_gatt_notify(NULL, &hpi_ppg_service.attrs[4], out_data, len * 4);
+	if (err != 0 && err != -ENOTCONN)
+	{
+		LOG_WRN("bt_gatt_notify (finger PPG) failed: %d", err);
+	}
 }
 
 void ble_ecg_notify(int32_t *ecg_data, uint8_t len)

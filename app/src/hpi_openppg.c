@@ -92,12 +92,18 @@ static inline void push_row_samples(const int32_t samples[HPI_OPPG_MAX_CH])
 
     struct oppg_row r = {
         .timestamp_ms = (uint64_t)k_uptime_get(), // TODO: swap for true wall-clock epoch when available
+        .sample = { 0 },
     };
-    memset(r.sample, 0, sizeof(r.sample));
 
     uint8_t copy_count = MIN(s_cfg.n_channels, (uint8_t)HPI_OPPG_MAX_CH);
     for (uint8_t c = 0; c < copy_count; ++c) {
         r.sample[c] = samples[c];
+    }
+
+    // Observe queue occupancy in debug modes so we can detect backpressure quickly.
+    uint32_t used = k_msgq_num_used_get(&s_row_q);
+    if (used > (HPI_OPPG_ROW_QUEUE_LEN * 3U / 4U)) {
+        LOG_DBG("PPG queue pressure: %u/%u rows used", used, (uint32_t)HPI_OPPG_ROW_QUEUE_LEN);
     }
 
     if (k_msgq_put(&s_row_q, &r, K_NO_WAIT) != 0) {
@@ -113,6 +119,12 @@ static inline void push_row_samples(const int32_t samples[HPI_OPPG_MAX_CH])
         }
         if (dropped) {
             (void)atomic_inc(&s_drop_counter);
+            static uint32_t last_warn_ms;
+            uint32_t now_ms = k_uptime_get_32();
+            if ((now_ms - last_warn_ms) > 1000U) {
+                last_warn_ms = now_ms;
+                LOG_WRN("PPG row queue overflowed; dropped oldest sample set");
+            }
             publish_drop_counter();
         }
     }
